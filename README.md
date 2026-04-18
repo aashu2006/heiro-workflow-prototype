@@ -3,15 +3,11 @@
 A small prototype showing how GitHub PR automation can be
 config driven, auditable, and easy to scale.
 
----
-
 ## The Problem
 
 Maintainers waste time on repetitive tasks like labeling PRs,
 welcoming contributors, and managing issues - done inconsistently
 across repos with hardcoded workflows.
-
----
 
 ## How It Works
 Event → Config → Decision → Action
@@ -22,14 +18,10 @@ Event → Config → Decision → Action
 
 Change the config, change the behavior. No code touched.
 
----
-
 ## Audit Log
 
 Every decision is logged:
 [AUDIT] 2026-04-18T10:23:01Z | status=ok | event=pull_request.opened | action=label | detail=added "needs-review"
-
----
 
 ## Adding a Rule
 
@@ -39,8 +31,6 @@ Only touch `config.yml`:
   action: comment
   message: "Thanks for your PR!"
 ```
-
----
 
 ## The Bigger Picture
 
