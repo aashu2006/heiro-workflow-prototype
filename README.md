@@ -38,3 +38,4 @@ This prototype uses GitHub Actions as the executor.
 The next step is a **GitHub App** as the central orchestrator -
 one place to manage permissions, config, and audit trails
 across all Hiero repositories.
+testing per-repo config
