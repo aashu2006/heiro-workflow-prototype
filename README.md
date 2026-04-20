@@ -1,31 +1,47 @@
-# Hiero Workflow Prototype
+# Hiero Workflow Automation Prototype
 
-A small prototype showing how GitHub PR automation can be
-config driven, auditable, and easy to scale.
+A working prototype demonstrating config-driven, auditable GitHub PR automation.
+Built as part of exploring the architecture for the Hiero LFX Mentorship project.
 
 ## The Problem
 
-Maintainers waste time on repetitive tasks like labeling PRs,
-welcoming contributors, and managing issues - done inconsistently
-across repos with hardcoded workflows.
+Maintainers across Hiero repos waste time on repetitive tasks like labeling PRs,
+welcoming contributors, and managing issues done inconsistently with hardcoded
+workflows that are hard to maintain or scale across repositories.
 
 ## How It Works
-Event → Config → Decision → Action
+Event → Per-repo Config → Permission Check → Decision → Action → Audit Log
 
-- **config.yml** - defines the rules (pure data, no code)
-- **script.js** - reads rules, matches event, runs actions
-- **GitHub Actions** - triggers the script, handles execution
+- **configs/** — one YAML file per repo, falls back to default
+- **script.js** — loads config, checks permissions, matches rules, runs actions
+- **GitHub Actions** — triggers the script, handles execution
 
-Change the config, change the behavior. No code touched.
+## Per-repo Config
+
+Each repo can have its own rules:
+configs/
+hiero-sdk-python.yml
+hiero-sdk-cpp.yml
+default.yml        ← fallback for any repo without a specific config
+
+## Permission Boundaries
+
+Every config defines what the bot is allowed and not allowed to do:
+```yaml
+permissions:
+  allow: [label, comment]
+  deny: [close, merge]
+```
+Even if a rule tries to run a denied action, the bot blocks it.
 
 ## Audit Log
 
-Every decision is logged:
-[AUDIT] 2026-04-18T10:23:01Z | status=ok | event=pull_request.opened | action=label | detail=added "needs-review"
+Every decision is logged with timestamp, repo, event, action and result:
+[AUDIT] 2026-04-20T10:23:01Z | status=ok | repo=hiero-sdk-python | event=pull_request.opened | action=label | detail=added "needs-review"
 
 ## Adding a Rule
 
-Only touch `config.yml`:
+Edit the repo's config only - zero code changes:
 ```yaml
 - event: pull_request.opened
   action: comment
@@ -35,7 +51,11 @@ Only touch `config.yml`:
 ## The Bigger Picture
 
 This prototype uses GitHub Actions as the executor.
-The next step is a **GitHub App** as the central orchestrator -
-one place to manage permissions, config, and audit trails
-across all Hiero repositories.
-testing per-repo config
+The natural next step is a **GitHub App** as the central orchestrator -
+one place to manage permissions, configs, and audit trails across all Hiero repos.
+Now:   Event -> Actions Workflow -> script.js -> GitHub API
+Next:  Event -> GitHub App -> Decision Engine -> GitHub API
+↑
+reads per-repo config
+manages permissions centrally
+audit trail across all repos
