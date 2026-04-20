@@ -1,0 +1,25 @@
+# Rules specific to hiero-sdk-cpp
+# This repo requires DCO and GPG checks reminder
+
+permissions:
+  allow: [label, comment]
+  deny: [close, merge]
+
+rules:
+  - event: pull_request.opened
+    action: label
+    label: "needs-review"
+
+  - event: pull_request.opened
+    action: comment
+    message: |
+      👋 Welcome to hiero-sdk-cpp!
+      Please ensure:
+      - Your commits are GPG signed
+      - DCO sign-off is present on all commits
+      A maintainer will review it shortly.
+
+  - event: pull_request.closed
+    action: comment
+    message: |
+      ✅ Thanks for contributing to hiero-sdk-cpp!

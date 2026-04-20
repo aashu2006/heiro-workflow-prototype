@@ -1,3 +1,9 @@
+# Default rules only this applies to any repo without a specific config
+
+permissions:
+  allow: [label, comment]
+  deny: [close, merge]
+
 rules:
   - event: pull_request.opened
     action: label

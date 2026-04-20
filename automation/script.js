@@ -14,41 +14,96 @@ const eventKey = `${eventName}.${eventAction}`;
 // ─── AUDIT LOGGER ────────────────────────────────────────────────────────────
 function audit(status, action, detail) {
   const timestamp = new Date().toISOString();
-  console.log(`[AUDIT] ${timestamp} | status=${status} | event=${eventKey} | action=${action} | detail=${detail}`);
+  const line = `[AUDIT] ${timestamp} | status=${status} | repo=${repoName} | event=${eventKey} | action=${action} | detail=${detail}`;
+  console.log(line);
+
+  // Write to audit log file
+  fs.appendFileSync(path.join(__dirname, "audit.log"), line + "\n");
 }
 
 // ─── LOAD CONFIG ─────────────────────────────────────────────────────────────
-let config;
-try {
-  const configPath = path.join(__dirname, "config.yml");
-  config = yaml.load(fs.readFileSync(configPath, "utf8"));
-  audit("ok", "load-config", "config.yml loaded successfully");
-} catch (err) {
-  audit("error", "load-config", err.message);
-  process.exit(1);
+function loadConfig() {
+  const repoConfigPath = path.join(__dirname, `../configs/${repoName}.yml`);
+  const defaultConfigPath = path.join(__dirname, `../configs/default.yml`);
+
+  // Try repo-specific config first, fall back to default
+  if (fs.existsSync(repoConfigPath)) {
+    audit("ok", "load-config", `loaded repo-specific config for ${repoName}`);
+    return yaml.load(fs.readFileSync(repoConfigPath, "utf8"));
+  }
+
+  audit("ok", "load-config", `no config for ${repoName}, using default`);
+  return yaml.load(fs.readFileSync(defaultConfigPath, "utf8"));
 }
 
-console.log(`\n Event: ${eventKey}`);
-console.log(`PR:    #${prNumber} in ${repoOwner}/${repoName}\n`);
-
-// ─── MATCH RULES ─────────────────────────────────────────────────────────────
-const matchedRules = config.rules.filter((rule) => rule.event === eventKey);
-
-if (matchedRules.length === 0) {
-  audit("skip", "match-rules", "no rules matched");
-  console.log("No rules matched. Nothing to do.");
-  process.exit(0);
+// ─── PERMISSION CHECK ────────────────────────────────────────────────────────
+function isAllowed(action, permissions) {
+  if (permissions.deny && permissions.deny.includes(action)) {
+    audit("blocked", "permission-check", `action "${action}" is in deny list`);
+    return false;
+  }
+  if (permissions.allow && !permissions.allow.includes(action)) {
+    audit("blocked", "permission-check", `action "${action}" is not in allow list`);
+    return false;
+  }
+  return true;
 }
 
-audit("ok", "match-rules", `${matchedRules.length} rule(s) matched`);
-console.log(`Matched ${matchedRules.length} rule(s):\n`);
-matchedRules.forEach((r, i) => console.log(`  [${i + 1}] action: ${r.action}`));
-console.log();
+// ─── MAIN ────────────────────────────────────────────────────────────────────
+async function run() {
+  let config;
+  try {
+    config = loadConfig();
+  } catch (err) {
+    audit("error", "load-config", err.message);
+    process.exit(1);
+  }
+
+  console.log(`\n📋 Event:  ${eventKey}`);
+  console.log(`📦 Repo:   ${repoOwner}/${repoName}`);
+  console.log(`🔢 PR:     #${prNumber}\n`);
+
+  // Match rules for this event
+  const matchedRules = config.rules.filter((rule) => rule.event === eventKey);
+
+  if (matchedRules.length === 0) {
+    audit("skip", "match-rules", "no rules matched");
+    console.log("⏭️  No rules matched. Nothing to do.");
+    process.exit(0);
+  }
+
+  audit("ok", "match-rules", `${matchedRules.length} rule(s) matched`);
+  console.log(`✅ Matched ${matchedRules.length} rule(s)\n`);
+
+  // Execute each matched rule
+  for (const rule of matchedRules) {
+
+    // Check permissions before running any action
+    if (!isAllowed(rule.action, config.permissions)) {
+      console.warn(`🚫 Action "${rule.action}" blocked by permissions.`);
+      continue;
+    }
+
+    switch (rule.action) {
+      case "label":
+        await addLabel(rule.label);
+        break;
+      case "comment":
+        await addComment(rule.message);
+        break;
+      default:
+        audit("warn", "dispatch", `unknown action "${rule.action}" skipped`);
+        console.warn(`⚠️  Unknown action: "${rule.action}" — skipping.`);
+    }
+  }
+
+  console.log("🎉 All actions complete.");
+}
 
 // ─── ACTIONS ─────────────────────────────────────────────────────────────────
 async function addLabel(label) {
   try {
-    console.log(`Adding label: "${label}"`);
+    console.log(`🏷️  Adding label: "${label}"`);
     await octokit.issues.addLabels({
       owner: repoOwner,
       repo: repoName,
@@ -65,7 +120,7 @@ async function addLabel(label) {
 
 async function addComment(message) {
   try {
-    console.log(`Posting comment...`);
+    console.log(`💬 Posting comment...`);
     await octokit.issues.createComment({
       owner: repoOwner,
       repo: repoName,
@@ -78,24 +133,6 @@ async function addComment(message) {
     audit("error", "comment", err.message);
     console.error(`   ✗ Failed to post comment: ${err.message}`);
   }
-}
-
-// ─── DISPATCH ────────────────────────────────────────────────────────────────
-async function run() {
-  for (const rule of matchedRules) {
-    switch (rule.action) {
-      case "label":
-        await addLabel(rule.label);
-        break;
-      case "comment":
-        await addComment(rule.message);
-        break;
-      default:
-        audit("warn", "dispatch", `unknown action "${rule.action}" skipped`);
-        console.warn(`Unknown action: "${rule.action}" — skipping.`);
-    }
-  }
-  console.log("All actions complete.");
 }
 
 run().catch((err) => {
