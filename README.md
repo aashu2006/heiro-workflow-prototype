@@ -10,11 +10,11 @@ welcoming contributors, and managing issues done inconsistently with hardcoded
 workflows that are hard to maintain or scale across repositories.
 
 ## How It Works
-Event → Per-repo Config → Permission Check → Decision → Action → Audit Log
+Event -> Per-repo Config -> Permission Check -> Decision -> Action -> Audit Log
 
-- **configs/** — one YAML file per repo, falls back to default
-- **script.js** — loads config, checks permissions, matches rules, runs actions
-- **GitHub Actions** — triggers the script, handles execution
+- **configs/** - one YAML file per repo, falls back to default
+- **script.js** - loads config, checks permissions, matches rules, runs actions
+- **GitHub Actions** - triggers the script, handles execution
 
 ## Per-repo Config
 
