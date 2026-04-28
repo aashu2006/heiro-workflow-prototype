@@ -21,6 +21,63 @@ function audit(status, action, detail) {
   fs.appendFileSync(path.join(__dirname, "audit.log"), line + "\n");
 }
 
+// ─── CONFIG VALIDATION ───────────────────────────────────────────────────────
+function validateConfig(config, configPath) {
+  if (!config || !Array.isArray(config.rules) || config.rules.length === 0) {
+    const msg = `${configPath}: "rules" must be a non-empty array`;
+    audit("error", "validate-config", msg);
+    throw new Error(msg);
+  }
+
+  const VALID_ACTIONS = ["label", "comment"];
+
+  for (let i = 0; i < config.rules.length; i++) {
+    const rule = config.rules[i];
+    const prefix = `${configPath}: rules[${i}]`;
+
+    if (typeof rule.event !== "string" || !rule.event) {
+      const msg = `${prefix}: "event" must be a non-empty string`;
+      audit("error", "validate-config", msg);
+      throw new Error(msg);
+    }
+
+    if (typeof rule.action !== "string" || !VALID_ACTIONS.includes(rule.action)) {
+      const msg = `${prefix}: "action" must be one of: ${VALID_ACTIONS.join(", ")}`;
+      audit("error", "validate-config", msg);
+      throw new Error(msg);
+    }
+
+    if (rule.action === "label") {
+      if (typeof rule.label !== "string" || !rule.label) {
+        const msg = `${prefix}: action "label" requires a non-empty "label" field`;
+        audit("error", "validate-config", msg);
+        throw new Error(msg);
+      }
+    }
+
+    if (rule.action === "comment") {
+      if (typeof rule.message !== "string" || !rule.message) {
+        const msg = `${prefix}: action "comment" requires a non-empty "message" field`;
+        audit("error", "validate-config", msg);
+        throw new Error(msg);
+      }
+    }
+  }
+
+  if (config.permissions !== undefined) {
+    if (config.permissions.allow !== undefined && !Array.isArray(config.permissions.allow)) {
+      const msg = `${configPath}: "permissions.allow" must be an array`;
+      audit("error", "validate-config", msg);
+      throw new Error(msg);
+    }
+    if (config.permissions.deny !== undefined && !Array.isArray(config.permissions.deny)) {
+      const msg = `${configPath}: "permissions.deny" must be an array`;
+      audit("error", "validate-config", msg);
+      throw new Error(msg);
+    }
+  }
+}
+
 // ─── LOAD CONFIG ─────────────────────────────────────────────────────────────
 function loadConfig() {
   const repoConfigPath = path.join(__dirname, `../configs/${repoName}.yml`);
@@ -29,11 +86,15 @@ function loadConfig() {
   // Try repo-specific config first, fall back to default
   if (fs.existsSync(repoConfigPath)) {
     audit("ok", "load-config", `loaded repo-specific config for ${repoName}`);
-    return yaml.load(fs.readFileSync(repoConfigPath, "utf8"));
+    const config = yaml.load(fs.readFileSync(repoConfigPath, "utf8"));
+    validateConfig(config, repoConfigPath);
+    return config;
   }
 
   audit("ok", "load-config", `no config for ${repoName}, using default`);
-  return yaml.load(fs.readFileSync(defaultConfigPath, "utf8"));
+  const config = yaml.load(fs.readFileSync(defaultConfigPath, "utf8"));
+  validateConfig(config, defaultConfigPath);
+  return config;
 }
 
 // ─── PERMISSION CHECK ────────────────────────────────────────────────────────
