@@ -1,61 +1,111 @@
 # Hiero Workflow Automation Prototype
 
-A working prototype demonstrating config-driven, auditable GitHub PR automation.
-Built as part of exploring the architecture for the Hiero LFX Mentorship project.
+> Config-driven GitHub PR automation - no code changes needed to add new rules.
+
+Built as part of the Hiero LFX Mentorship project.
 
 ## The Problem
 
-Maintainers across Hiero repos waste time on repetitive tasks like labeling PRs,
-welcoming contributors, and managing issues done inconsistently with hardcoded
-workflows that are hard to maintain or scale across repositories.
+Hiero maintainers were doing the same things manually across every repo:
+- Labeling new PRs
+- Welcoming contributors
+- Reminding people about DCO sign-offs and GPG signing
+
+This prototype automates all of that, consistently, across every repo.
 
 ## How It Works
-Event -> Per-repo Config -> Permission Check -> Decision -> Action -> Audit Log
 
-- **configs/** - one YAML file per repo, falls back to default
-- **script.js** - loads config, checks permissions, matches rules, runs actions
-- **GitHub Actions** - triggers the script, handles execution
+```
+PR opened/labeled/closed
+        ↓
+  Which repo is this?  →  Load that repo's config
+        ↓
+  Is this action allowed?  →  Check permissions
+        ↓
+  Run the matching rules  →  Label it, comment on it
+        ↓
+  Log everything to the audit trail
+```
+
+## What It Can Do
+
+**Events it listens to:**
+
+| Event | When it fires |
+|-------|--------------|
+| `pull_request.opened` | Someone opens a PR |
+| `pull_request.labeled` | A label gets added to a PR |
+| `pull_request.closed` | A PR is merged or closed |
+
+**Actions it can take:**
+
+| Action | What happens |
+|--------|-------------|
+| `label` | Adds a label to the PR |
+| `comment` | Posts a comment on the PR |
 
 ## Per-repo Config
 
-Each repo can have its own rules:
+Each repo gets its own rules file. No config? It falls back to the default.
+
+```
 configs/
-hiero-sdk-python.yml
-hiero-sdk-cpp.yml
-default.yml        ← fallback for any repo without a specific config
+  hiero-sdk-python.yml   ← custom rules for the Python SDK
+  hiero-sdk-cpp.yml      ← custom rules for the C++ SDK (includes GPG + DCO reminders)
+  default.yml            ← fallback for everything else
+```
+
+## Adding a Rule
+
+Just edit the YAML - no code changes, no deployments:
+
+```yaml
+- event: pull_request.opened
+  action: comment
+  message: "Thanks for the PR! A maintainer will review shortly."
+```
 
 ## Permission Boundaries
 
-Every config defines what the bot is allowed and not allowed to do:
+Every config declares exactly what the bot is and isn't allowed to do:
+
 ```yaml
 permissions:
   allow: [label, comment]
   deny: [close, merge]
 ```
-Even if a rule tries to run a denied action, the bot blocks it.
+
+Even if a rule tries to close or merge a PR, the bot will refuse and log it.
 
 ## Audit Log
 
-Every decision is logged with timestamp, repo, event, action and result:
-[AUDIT] 2026-04-20T10:23:01Z | status=ok | repo=hiero-sdk-python | event=pull_request.opened | action=label | detail=added "needs-review"
+Every decision the bot makes gets logged - what happened, why, and when:
 
-## Adding a Rule
-
-Edit the repo's config only - zero code changes:
-```yaml
-- event: pull_request.opened
-  action: comment
-  message: "Thanks for your PR!"
+```
+[AUDIT] 2026-04-20T10:23:01Z | status=ok | repo=hiero-sdk-python | event=pull_request.opened | action=label | detail=added "needs-review" to PR #42
 ```
 
-## The Bigger Picture
+| Status | Meaning |
+|--------|---------|
+| `ok` | Action ran successfully |
+| `blocked` | Denied by the permissions config |
+| `skip` | No rules matched this event |
+| `error` | Something went wrong |
 
-This prototype uses GitHub Actions as the executor.
-The natural next step is a **GitHub App** as the central orchestrator -
-one place to manage permissions, configs, and audit trails across all Hiero repos.
-Now:   Event -> Actions Workflow -> script.js -> GitHub API
-Next:  Event -> GitHub App -> Decision Engine -> GitHub API
-↑
-reads per-repo config
-manages permissions centrally
-audit trail across all repos
+The log is saved as a downloadable artifact on every workflow run so nothing gets lost.
+
+## Where This Is Going
+
+Right now, everything runs inside GitHub Actions - one workflow per repo.
+
+The next step is a **GitHub App** that sits centrally across all Hiero repos:
+
+```
+Now:  PR event → Actions Workflow → script.js → GitHub API
+
+Next: PR event → GitHub App → Decision Engine → GitHub API
+                                    ↑
+                         one place for all configs
+                         one place for all permissions
+                         one audit trail across every repo
+```
