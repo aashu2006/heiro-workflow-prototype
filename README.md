@@ -94,6 +94,18 @@ Every decision the bot makes gets logged - what happened, why, and when:
 
 The log is saved as a downloadable artifact on every workflow run so nothing gets lost.
 
+## Config Validation
+
+Every config file is validated immediately after loading — before any action runs.
+
+If a rule is missing required fields or has an invalid action type, the bot exits with a clear audit error:
+
+```
+[AUDIT] 2026-04-20T10:23:01Z | status=error | repo=hiero-bot | event=pull_request.opened | action=validate-config | detail=Rule 1: action "label" requires a "label" field
+```
+
+This means broken configs fail fast and loudly — never silently.
+
 ## Where This Is Going
 
 Right now, everything runs inside GitHub Actions - one workflow per repo.
@@ -109,4 +121,3 @@ Next: PR event → GitHub App → Decision Engine → GitHub API
                          one place for all permissions
                          one audit trail across every repo
 ```
-testing all fixes
