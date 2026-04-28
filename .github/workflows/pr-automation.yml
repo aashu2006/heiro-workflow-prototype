@@ -17,10 +17,10 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         working-directory: ./automation
 
       - name: Run decision script
@@ -32,3 +32,11 @@ jobs:
           REPO: ${{ github.repository }}
         run: node script.js
         working-directory: ./automation
+
+      - name: Upload audit log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-log-pr-${{ github.event.pull_request.number }}
+          path: automation/audit.log
+          if-no-files-found: ignore

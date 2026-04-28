@@ -15,6 +15,11 @@ rules:
       👋 Thanks for opening this PR!
       A maintainer will review it shortly.
 
+  - event: pull_request.labeled
+    action: comment
+    message: |
+      🏷️ A label was just applied to this PR. A maintainer will follow up shortly.
+
   - event: pull_request.closed
     action: comment
     message: |

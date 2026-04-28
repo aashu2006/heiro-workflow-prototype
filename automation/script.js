@@ -37,7 +37,7 @@ function loadConfig() {
 }
 
 // ─── PERMISSION CHECK ────────────────────────────────────────────────────────
-function isAllowed(action, permissions) {
+function isAllowed(action, permissions = {}) {
   if (permissions.deny && permissions.deny.includes(action)) {
     audit("blocked", "permission-check", `action "${action}" is in deny list`);
     return false;
